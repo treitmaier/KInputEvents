@@ -17,8 +17,8 @@ fun main() {
 
     // Add Input Event Listener
     val keyEventListener: OnInputEventListener = {
-        // Only listen for KEY presses and print them out
-        if(it.type == EV_KEY)
+        // Only listen for key releases and print them out
+        if(it.type == EV_KEY && it.value == EV_KEY_RELEASE)
             println(it)
     }
     keyboard.addListener(keyEventListener)
@@ -31,4 +31,3 @@ fun main() {
     keyboard.removeListener(keyEventListener)
     keyboard.exit()
 }
-
