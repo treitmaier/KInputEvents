@@ -7,13 +7,13 @@ KInputEvents does not depend on any native libraries or applications and is comp
 
 Input Events can come from a broad range of devices: from keyboards and mice to touchscreens, joysticks, and hardware buttons.  In fact, the motivation and first use case for KInputEvents was to respond to key-presses on a [3x4 Matrix Keypad](https://reitmaier.xyz/blog/matrix_keyboard/) connected to a Raspberry Pi's GPIOs.  
 
-The Linux Kernel Input Subsystem creates device files for these diverse input devices in the `/dev/input` directory. KInputEvents binds to a specified input device (e.g. `/dev/input/mouse0`) and surfaces events to any listeners registered to it. For example, when the user moves the mouse, presses a key, or touches the screen, depending on the input device file.
+The Linux Kernel Input Subsystem creates device files for these diverse input devices in the `/dev/input` directory. KInputEvents binds to a specified input device (e.g. `/dev/input/mouse0`) and surfaces events to any listeners registered to it. For example, when the user moves the mouse, presses a key, or touches the screen.
 
 ## Sample
 
 To get an impression of the functionality that KInputEvents provides, checkout the [Demo Application](src/main/kotlin/xyz/reitmaier/kinputevents/KInputEventsDemo.kt) which listens for and prints out keyboard key release events.  
 
-Here's what it outputs when typing in the letters 'kinputevents' on a keyboard, in the case represented by the `/dev/input/event0` device file:
+Here's what it outputs when typing in the letters 'kinputevents' on a keyboard, represented by the `/dev/input/event0` device file:
 
     Event: Time 1594904982.414985, type 1 (EV_KEY), code 37 (KEY_K), value 0 (EV_KEY_RELEASE)
     Event: Time 1594904983.374958, type 1 (EV_KEY), code 23 (KEY_I), value 0 (EV_KEY_RELEASE)
