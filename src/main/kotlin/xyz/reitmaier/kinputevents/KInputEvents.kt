@@ -1,14 +1,21 @@
 package xyz.reitmaier.kinputevents
 
-import java.io.DataInputStream
-import java.io.FileInputStream
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.channels.AsynchronousCloseException
+import java.nio.channels.FileChannel
+import java.nio.channels.ReadableByteChannel
+import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
+import java.util.concurrent.atomic.AtomicBoolean
+
 
 typealias OnInputEventListener = (event: InputEvent) -> Unit
 
 class KInputEvents(private val inputDevicePath: String) {
-    private var dis: DataInputStream? = null
-    private var running = false
+    private var fileChannel: ReadableByteChannel? = null
+    private val running = AtomicBoolean(false)
     private var readerThread: Thread? = null
     private var listeners: ArrayList<OnInputEventListener> = ArrayList()
 
@@ -20,8 +27,7 @@ class KInputEvents(private val inputDevicePath: String) {
     https://www.kernel.org/doc/Documentation/input/input.txt
      */
     private val inputEventSize = if(is64Bit) 24 else 16
-    private val inputEventData = ByteArray(inputEventSize)
-    private val timeStructSize = if(is64Bit) 16 else 8 // Includes seconds & microsecond
+    private val inputEventData = ByteBuffer.allocate(inputEventSize)
     private val secondsIndex = 0
     private val microSecondsIndex = if(is64Bit) 8 else 4
     private val typeIndex = if(is64Bit) 16 else 8
@@ -33,53 +39,58 @@ class KInputEvents(private val inputDevicePath: String) {
         if(readerThread?.isAlive == true) {
             throw Exception("${this.javaClass.simpleName} is already started.")
         }
-        // (Close existing and) create new DataInputStream
-        dis?.close()
-        dis = DataInputStream(FileInputStream(inputDevicePath))
+        // (Close existing and) create new FileChannel
+        fileChannel?.close()
+        fileChannel = FileChannel.open(Paths.get(inputDevicePath), StandardOpenOption.READ)
 
         // Create & start reader thread
-        running = true
+        running.set(true)
         readerThread = Thread { poll() }
         readerThread?.isDaemon = true
         readerThread?.start()
     }
 
     fun exit() {
-        running = false
+        running.set(false)
         try {
-            //Wait for the reader thread to stop
-            readerThread?.join()
+            //Interrupt the reader thread
+            println("Closing Channel")
+            fileChannel?.close()
+//            readerThread?.join()
         } catch (e: InterruptedException) {
-            e.printStackTrace()
-        }
-        try {
-            //Close the input device stream
-            dis?.close()
-        } catch (e: IOException) {
             e.printStackTrace()
         }
     }
 
     private fun poll() {
         try {
-            while (running) {
+            while (running.get()) {
                 // read input event Data
-                dis?.readFully(inputEventData)
+                fileChannel?.read(inputEventData)
 
                 // parse input event data
-                val seconds = inputEventData.getNumericValueAt(secondsIndex, timeStructSize / 2)
-                val microseconds = inputEventData.getNumericValueAt(microSecondsIndex, timeStructSize / 2)
-                val timestamp = "${seconds}.$microseconds"
+                inputEventData.order(ByteOrder.LITTLE_ENDIAN)
+                val seconds: Number = if (is64Bit)
+                    inputEventData.getLong(secondsIndex) else inputEventData.getInt(secondsIndex)
+                val microSeconds: Number = if (is64Bit)
+                    inputEventData.getLong(microSecondsIndex) else inputEventData.getInt(microSecondsIndex)
+                val timestamp = "$seconds.$microSeconds"
 
-                val type = inputEventData.getNumericValueAt(typeIndex, 2).toInt()
-                val code = inputEventData.getNumericValueAt(codeIndex, 2).toInt()
-                val value = inputEventData.getNumericValueAt(valueIndex, 4).toInt()
+                val type = inputEventData.getShort(typeIndex).toInt()
+                val code = inputEventData.getShort(codeIndex).toInt()
+                val value = inputEventData.getInt(valueIndex)
+
+                //reset the position to zero
+                inputEventData.flip()
 
                 // distribute the event to listeners
                 synchronized(listeners) {
                     listeners.forEach { it(InputEvent(timestamp, type, code, value)) }
                 }
             }
+        } catch (e: AsynchronousCloseException) {
+            // FileChannel was closed by exit() function
+            // Do nothing
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -97,16 +108,6 @@ class KInputEvents(private val inputDevicePath: String) {
             listeners.remove(listener)
         }
     }
-
-    //Helper function to read an unsigned number from a bytearray
-    private fun ByteArray.getNumericValueAt(idx: Int, length: Int) : Long {
-        var value: Long = 0
-        for (i in idx until length+idx) {
-            value += this[i].toLong() and 0xffL shl 8 * (i - idx)
-        }
-        return value
-    }
-
 
 }
 
