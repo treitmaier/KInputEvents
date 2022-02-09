@@ -4,9 +4,6 @@ plugins {
   `maven-publish`
 }
 
-group = "xyz.reitmaier.kinputevents"
-version = "0.1"
-
 repositories {
   mavenCentral()
 }
@@ -21,4 +18,15 @@ configure<JavaPluginExtension> {
 
 tasks.withType<KotlinCompile> {
   kotlinOptions.jvmTarget = "1.8"
+}
+publishing {
+  publications {
+    create<MavenPublication>("maven") {
+      groupId = "xyz.reitmaier"
+      artifactId = "kinputevents"
+      version = "0.1"
+
+      from(components["kotlin"])
+    }
+  }
 }
