@@ -1,24 +1,20 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
-  kotlin("jvm") version "1.6.10"
+  kotlin("jvm") version "2.0.0"
   `maven-publish`
 }
 
 repositories {
   mavenCentral()
 }
-
-//dependencies {
-//    implementation(kotlin("stdlib-jdk8"))
-//}
-
+kotlin {
+  compilerOptions.jvmTarget.set(JvmTarget.JVM_1_8)
+}
 configure<JavaPluginExtension> {
   sourceCompatibility = JavaVersion.VERSION_1_8
 }
 
-tasks.withType<KotlinCompile> {
-  kotlinOptions.jvmTarget = "1.8"
-}
 publishing {
   publications {
     create<MavenPublication>("maven") {
